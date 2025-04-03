@@ -14,8 +14,8 @@ export class Student {
   @Column('text', { unique: true })
   email: string;
 
-  //   @Column('text', { array: true })
-  //   subjects: string[];
+  @Column('text', { array: true })
+  subjects: string[];
 
   @Column('text')
   gender: string;
