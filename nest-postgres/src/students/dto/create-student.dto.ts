@@ -25,4 +25,8 @@ export class CreateStudentDto {
 
   @IsIn(['Male', 'Female', 'Other'])
   gender: string;
+
+  @IsString()
+  @IsOptional()
+  nickname: string;
 }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StudentsModule } from './students/students.module';
+import { CommonsModule } from './commons/commons.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { StudentsModule } from './students/students.module';
       synchronize: true, //Only for development, in production make migrations
     }),
     StudentsModule,
+    CommonsModule,
   ],
   controllers: [],
   providers: [],
