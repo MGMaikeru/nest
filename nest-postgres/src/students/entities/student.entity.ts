@@ -1,4 +1,11 @@
-import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Grade } from './grade.entity';
 
 @Entity()
 export class Student {
@@ -21,7 +28,14 @@ export class Student {
   gender: string;
 
   @Column('text', { unique: true, nullable: true })
-  nickname: string;
+  nickname?: string;
+
+  @OneToMany(
+    () => Grade,
+    (grade) => grade.student, // Note: This assumes that the Grade entity has a 'student' property that references the Student entity
+    { cascade: true, eager: true }, // Cascade operations to grades and eager load them
+  )
+  grades?: Grade[];
 
   @BeforeInsert()
   checkNickNameInsert() {

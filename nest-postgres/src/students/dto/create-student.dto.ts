@@ -7,6 +7,11 @@ import {
   IsString,
 } from 'class-validator';
 
+interface GradesInterface {
+  subject: string;
+  grade: number;
+}
+
 export class CreateStudentDto {
   @IsString()
   name: string;
@@ -28,5 +33,9 @@ export class CreateStudentDto {
 
   @IsString()
   @IsOptional()
-  nickname: string;
+  nickname?: string;
+
+  @IsArray()
+  @IsOptional()
+  grades: GradesInterface[]; // Use the GradesInterface type for the grades property
 }

@@ -9,9 +9,10 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Student } from './entities/student.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../commons/dto/pagination.dto';
 import { isUUID } from 'class-validator';
+import { Grade } from './entities/grade.entity';
 
 @Injectable()
 export class StudentsService {
@@ -19,15 +20,21 @@ export class StudentsService {
   constructor(
     @InjectRepository(Student)
     private readonly studentRepository: Repository<Student>,
+    @InjectRepository(Grade)
+    private readonly gradeRepository: Repository<Grade>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createStudentDto: CreateStudentDto) {
     try {
-      const student = this.studentRepository.create(createStudentDto);
+      const { grades = [], ...studentDetails } = createStudentDto;
+      const student = this.studentRepository.create({
+        ...studentDetails,
+        grades: grades.map((grade) => this.gradeRepository.create(grade)),
+      });
       await this.studentRepository.save(student);
       return student;
     } catch (error) {
-      this.logger.error(error.detail);
       this.handleError(error);
     }
   }
@@ -52,7 +59,6 @@ export class StudentsService {
         skip: offset,
       });
     } catch (error) {
-      this.logger.error(error.detail);
       this.handleError(error);
     }
   }
@@ -71,6 +77,7 @@ export class StudentsService {
           name: term.toUpperCase(),
           nickname: term.toLowerCase(),
         })
+        .leftJoinAndSelect('student.grades', 'studentGrades')
         .getOne();
     }
     if (!student) {
@@ -80,15 +87,51 @@ export class StudentsService {
   }
 
   async update(id: string, updateStudentDto: UpdateStudentDto) {
+    const { grades, ...toUpdate } = updateStudentDto;
     const student = await this.studentRepository.preload({
       id: id,
-      ...updateStudentDto,
+      ...toUpdate,
     });
+
+    if (!student) {
+      throw new NotFoundException(`Student with id ${id} not found`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (grades) {
+        await queryRunner.manager.delete(Grade, { student: { id } });
+        student.grades = grades.map((grade) =>
+          this.gradeRepository.create({ ...grade, student }),
+        );
+      }
+      await queryRunner.manager.save(student);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return await this.findOne(id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      this.handleError(error);
+    }
   }
 
   async remove(id: string) {
     const student = await this.findOne(id);
     await this.studentRepository.remove(student);
+  }
+
+  async deleteAllStudents() {
+    const query = this.studentRepository.createQueryBuilder('student');
+    try {
+      await query.delete().where({}).execute();
+      return true;
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
   private handleError(error: any) {
